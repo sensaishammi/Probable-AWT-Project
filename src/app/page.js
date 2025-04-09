@@ -5,87 +5,133 @@ import CustomerHeader from "./_components/CustomerHeader";
 import Footer from "./_components/Footer";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FiSearch, FiMapPin } from "react-icons/fi";
+import toast from "react-hot-toast";
 
 export default function Home() {
   const [locations, setLocations] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [showLocation, setShowLocation] = useState(false);
-  const router=useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     loadLocations();
-    loadRestaurants()
-  }, [])
+    loadRestaurants();
+  }, []);
 
   const loadLocations = async () => {
-    let response = await fetch('http://localhost:3000/api/customer/locations');
-    response = await response.json()
-    if (response.success) {
-      setLocations(response.result)
+    try {
+      setLoading(true);
+      const response = await fetch('/api/customer/locations');
+      const data = await response.json();
+      if (data.success) {
+        setLocations(data.result);
+      } else {
+        toast.error('Failed to load locations');
+      }
+    } catch (err) {
+      setError('Failed to load locations');
+      toast.error('Failed to load locations');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const loadRestaurants = async (params) => {
-    let url="http://localhost:3000/api/customer";
-    if(params?.location){
-      url=url+"?location="+params.location
-    }else if(params?.restaurant){
-      url=url+"?restaurant="+params.restaurant
+    try {
+      setLoading(true);
+      let url = '/api/customer';
+      if (params?.location) {
+        url += `?location=${params.location}`;
+      } else if (params?.restaurant) {
+        url += `?restaurant=${params.restaurant}`;
+      }
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success) {
+        setRestaurants(data.result);
+      } else {
+        toast.error('Failed to load restaurants');
+      }
+    } catch (err) {
+      setError('Failed to load restaurants');
+      toast.error('Failed to load restaurants');
+    } finally {
+      setLoading(false);
     }
-    let response = await fetch(url);
-    response = await response.json()
-    if (response.success) {
-      setRestaurants(response.result)
-    }
-  }
-
+  };
 
   const handleListItem = (item) => {
-    setSelectedLocation(item)
-    setShowLocation(false)
-    loadRestaurants({location:item})
-  }
-  console.log(restaurants);
-  return (
-    <main >
-      <CustomerHeader />
-      <div className="main-page-banner">
-        <h1>Food Delivery App</h1>
-        <div className="input-wrapper">
-          <input type="text" value={selectedLocation}
-            onClick={() => setShowLocation(true)}
-            className="select-input" placeholder="Select Place" />
-          <ul className="location-list">
-            {
-              showLocation && locations.map((item) => (
-                <li onClick={() => handleListItem(item)}>{item}</li>
-              ))
-            }
-          </ul>
+    setSelectedLocation(item);
+    setShowLocation(false);
+    loadRestaurants({ location: item });
+  };
 
-          <input type="text" className="search-input" 
-          onChange={(event)=> loadRestaurants({restaurant:event.target.value})}
-          placeholder="Enter food or restaurant name" />
+  return (
+    <main className={styles.main}>
+      <CustomerHeader />
+      <div className={styles.banner}>
+        <h1>Discover Amazing Food</h1>
+        <div className={styles.searchContainer}>
+          <div className={styles.locationInput}>
+            <FiMapPin className={styles.icon} />
+            <input
+              type="text"
+              value={selectedLocation}
+              onClick={() => setShowLocation(true)}
+              className={styles.selectInput}
+              placeholder="Select Location"
+              readOnly
+            />
+            {showLocation && (
+              <ul className={styles.locationList}>
+                {locations.map((item, index) => (
+                  <li key={index} onClick={() => handleListItem(item)}>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className={styles.searchInput}>
+            <FiSearch className={styles.icon} />
+            <input
+              type="text"
+              className={styles.searchField}
+              onChange={(event) => loadRestaurants({ restaurant: event.target.value })}
+              placeholder="Search for restaurants or food"
+            />
+          </div>
         </div>
       </div>
-      <div className="restaurant-list-container">
-        {
-          restaurants.map((item) => (
-            <div onClick={()=>router.push('explore/'+item.name+"?id="+item._id)} className="restaurant-wrapper">
-              <div className="heading-wrapper">
-                <h3>{item.name}</h3>
-                <h5>Contact:{item.contact}</h5>
-              </div>
-              <div className="address-wrapper">
-                <div>{item.city},</div>
-                <div className="address"> {item.address}, Email: {item.email}</div>
 
-                </div>
+      {loading ? (
+        <div className={styles.loading}>Loading...</div>
+      ) : error ? (
+        <div className={styles.error}>{error}</div>
+      ) : (
+        <div className={styles.restaurantList}>
+          {restaurants.map((restaurant) => (
+            <div
+              key={restaurant._id}
+              className={styles.restaurantCard}
+              onClick={() => router.push(`/explore/${restaurant.name}?id=${restaurant._id}`)}
+            >
+              <div className={styles.restaurantInfo}>
+                <h3>{restaurant.name}</h3>
+                <p className={styles.contact}>Contact: {restaurant.contact}</p>
+                <p className={styles.address}>
+                  {restaurant.city}, {restaurant.address}
+                </p>
+                <p className={styles.email}>Email: {restaurant.email}</p>
+              </div>
             </div>
-          ))
-        }
-      </div>
+          ))}
+        </div>
+      )}
       <Footer />
     </main>
   );
